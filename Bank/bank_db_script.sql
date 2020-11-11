@@ -11,7 +11,10 @@ CREATE TABLE Loan (
     CreatedAt TIMESTAMP NOT NULL,
     ModifiedAt TIMESTAMP,
     Amount DECIMAL NOT NULL,
-    FOREIGN KEY (UserId) REFERENCES BankUser (UserId)
+      CONSTRAINT fk_UserId
+        FOREIGN KEY (UserId)
+        REFERENCES BankUser (UserId)
+        ON DELETE CASCADE
 );
 
 CREATE TABLE Deposit (
@@ -19,17 +22,23 @@ CREATE TABLE Deposit (
     BankUserId INTEGER NOT NULL,
     CreatedAt TIMESTAMP NOT NULL,
     Amount DECIMAL NOT NULL,
-    FOREIGN KEY (BankUserId) REFERENCES BankUser (id)
+      CONSTRAINT fk_BankUserId
+        FOREIGN KEY (BankUserId)
+        REFERENCES BankUser (Id)
+        ON DELETE CASCADE
 );
 
-CREATE TABLE Accont(
+CREATE TABLE Account(
     Id INTEGER PRIMARY KEY AUTOINCREMENT,
     BankUserId INTEGER NOT NULL UNIQUE,
-    AccountNo INTEGER NOT NULL,
+    AccountNo VARCHAR NOT NULL,
     IsStudent BOOLEAN NOT NULL,
     CreatedAt TIMESTAMP NOT NULL,
-    ModifiedAt TIMESTAMP NOT NULL,
+    ModifiedAt TIMESTAMP,
     InterestRate NUMBER NOT NULL,
     Amount DECIMAL NOT NULL,
-    FOREIGN KEY (BankUserId) REFERENCES BankUser (id)
+    CONSTRAINT fk_BankUserId
+        FOREIGN KEY (BankUserId)
+        REFERENCES BankUser (Id)
+        ON DELETE CASCADE
 );
