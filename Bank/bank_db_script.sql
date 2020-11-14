@@ -1,3 +1,9 @@
+DROP TABLE IF EXISTS BankUser;
+DROP TABLE IF EXISTS Loan;
+DROP TABLE IF EXISTS Deposit;
+DROP TABLE IF EXISTS Account;
+
+
 CREATE TABLE BankUser (
     Id INTEGER PRIMARY KEY AUTOINCREMENT,
     UserId VARCHAR NOT NULL UNIQUE,
@@ -11,10 +17,9 @@ CREATE TABLE Loan (
     CreatedAt TIMESTAMP NOT NULL,
     ModifiedAt TIMESTAMP,
     Amount DECIMAL NOT NULL,
-      CONSTRAINT fk_UserId
-        FOREIGN KEY (UserId)
-        REFERENCES BankUser (UserId)
-        ON DELETE CASCADE
+    FOREIGN KEY (UserId)
+      REFERENCES BankUser (UserId)
+      ON DELETE CASCADE
 );
 
 CREATE TABLE Deposit (
@@ -22,10 +27,9 @@ CREATE TABLE Deposit (
     BankUserId INTEGER NOT NULL,
     CreatedAt TIMESTAMP NOT NULL,
     Amount DECIMAL NOT NULL,
-      CONSTRAINT fk_BankUserId
-        FOREIGN KEY (BankUserId)
-        REFERENCES BankUser (Id)
-        ON DELETE CASCADE
+    FOREIGN KEY (BankUserId)
+      REFERENCES BankUser (Id)
+      ON DELETE CASCADE
 );
 
 CREATE TABLE Account(
@@ -37,8 +41,7 @@ CREATE TABLE Account(
     ModifiedAt TIMESTAMP,
     InterestRate NUMBER NOT NULL,
     Amount DECIMAL NOT NULL,
-    CONSTRAINT fk_BankUserId
-        FOREIGN KEY (BankUserId)
-        REFERENCES BankUser (Id)
-        ON DELETE CASCADE
+    FOREIGN KEY (BankUserId)
+      REFERENCES BankUser (Id)
+      ON DELETE CASCADE
 );

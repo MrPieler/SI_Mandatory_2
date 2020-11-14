@@ -15,6 +15,8 @@ class Database():
         """ Connect the databse handler to a databse """
         self.conn = sqlite3.connect(filename)
         self.conn.row_factory = self.dict_factory
+        #enable foreign keys
+        self.execQuery('PRAGMA foreign_keys = ON;')
 
     def insert(self,tableName,data):
         """ Inserts data in the form of a dictionary into a table """
@@ -40,17 +42,10 @@ class Database():
         self.conn.commit()
         return cur
 
-    def delete(self, tableName, id_name, id_value):
-        sql = f'DELETE FROM {tableName} WHERE {id_name} = {id_value};'
+    def delete(self, table_name, id_name, id_value):
+        sql = f'DELETE FROM {table_name} WHERE {id_name} = {id_value};'
         self.execQuery(sql)
         self.conn.commit()
-
-    def dict_factory(self,cursor, row):
-        """ Used to return rows as dictionary"""
-        d = {}
-        for idx, col in enumerate(cursor.description):
-            d[col[0]] = row[idx]
-        return d
 
     def execQuery(self, query, data=None):
         """ Execute a query on the database """
@@ -64,6 +59,13 @@ class Database():
     def close(self):
         """ Closes the connection to the database """
         self.conn.close()
+
+    def dict_factory(self,cursor, row):
+        """ Used to return rows as dictionary"""
+        d = {}
+        for idx, col in enumerate(cursor.description):
+            d[col[0]] = row[idx]
+        return d
 
 def main():
     db = Database()
