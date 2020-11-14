@@ -291,6 +291,155 @@ def delete_account():
 
     response.status_code = 204
     return response
+
+
+@app.route('/bank/deposit', methods=['GET'])
+def get_deposits():
+    response = Response()
+
+    bank_user_id = request.json.get('BankUserId') if request.json else None
+
+    if bank_user_id is None:
+        # invalid request
+        return gen_bad_request()
+    
+    db = Database()
+    db.connect(BANK_DB)
+    query = 'SELECT * FROM Deposit WHERE BankUserId = ?;'
+    deposits = db.execQuery(query, (bank_user_id,)).fetchall()
+
+    response.status_code = 200
+    response.data = json.dumps({
+        'deposits':deposits
+    })
+    return response
+
+
+@app.route('/bank/loan', methods=['GET'])
+def get_loans():
+    response = Response()
+
+    bank_user_id = request.args.get('BankUserId') if request.args else None
+
+    if bank_user_id is None:
+        # invalid request
+        return gen_bad_request()
+    
+    db = Database()
+    db.connect(BANK_DB)
+
+    query = '''
+    SELECT * FROM Loan l
+    LEFT JOIN BankUser b ON l.UserId = b.UserId
+    WHERE b.Id = ? AND Amount > 0;
+    '''
+    deposits = db.execQuery(query, (bank_user_id,)).fetchall()
+
+    response.status_code = 200
+    response.data = json.dumps({
+        'deposits':deposits
+    })
+    return response
+
+
+@app.route('/bank/bank_user/withdraw', methods=['POST'])
+def withdraw_money():
+    response = Response()
+
+    if request.json is None:
+        return gen_bad_request()
+
+    user_id = request.json.get('UserId')
+    amount = request.json.get('Amount')
+
+    if user_id is None or amount is None:
+        return gen_bad_request()
+
+    # check if amount is above 0
+    if type(amount) != int and type(amount) != float:
+        response.status_code = 403
+        response.data = json.dumps({
+            'message':'amount must be a number over 0'
+        })
+        return response
+
+    if amount < 0:
+        response.status_code = 403
+        response.data = json.dumps({
+            'message':'amount must be a number over 0'
+        })
+        return response
+
+    # valid request
+    db = Database()
+    db.connect(BANK_DB)
+
+    db.execQuery('BEGIN TRANSACTION;')
+
+    query = '''
+    SELECT a.Id, a.Amount FROM Account a
+    LEFT JOIN BankUser b ON b.Id = a.BankUserId
+    WHERE b.UserId = ?;
+    '''
+    row = db.execQuery(query, (user_id,)).fetchone()
+
+    # check if any results
+    if row is None:
+        # no Account and/or BankUser exists for the given UserId
+        response.status_code = 403
+        response.data = json.dumps({
+            'message':'No Account and/or BankUser exists for the given UserId'
+        })
+        return response
+
+    print(row, flush=True)
+
+    # account and bankuser exists
+    account_id = row['Id']
+    available_amount = row['Amount']
+
+    # check if the user has the requested amount
+    if available_amount >= amount:
+        # sufficent money
+
+        updated_balance = available_amount - amount
+
+        data = {
+            'Amount':updated_balance,
+            'ModifiedAt':datetime.now().timestamp()
+            }
+
+        db.update('Account', data, account_id)
+
+        # get updated account info to send back
+        query = '''
+        SELECT b.UserId, a.Id AS AccountId, b.Id AS BankUserId, a.Amount, a.ModifiedAt
+        FROM Account a
+        LEFT JOIN BankUser b ON a.BankUserId = b.Id
+        WHERE b.UserId = ?;
+        '''
+        account_details = db.execQuery(query, (user_id,)).fetchone()
+        db.close()
+
+        response.status_code = 200
+        response.data = json.dumps({
+            'data':account_details
+        })
+    
+    else:
+        # not enough money
+        response.status_code = 403
+        response.data = json.dumps({
+            'message':'Account does not have sufficent funds'
+        })
+
+    return response
+
+
+
+
+
+
     
 
 def gen_bad_request():
