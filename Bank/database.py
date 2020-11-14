@@ -27,7 +27,7 @@ class Database():
         self.conn.commit()
         return cur
 
-    def update(self, tableName, data, id_name, id_value):
+    def update(self, tableName, data, id_value, id_name = 'Id'):
         counter = 0
         max = len(data)
         update_fields = ''
@@ -42,7 +42,7 @@ class Database():
         self.conn.commit()
         return cur
 
-    def delete(self, table_name, id_name, id_value):
+    def delete(self, table_name, id_value, id_name = 'Id'):
         sql = f'DELETE FROM {table_name} WHERE {id_name} = {id_value};'
         self.execQuery(sql)
         self.conn.commit()

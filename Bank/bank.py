@@ -124,7 +124,7 @@ def update_bank_user():
     # run query
     try:
         # valid post
-        db.delete(table_name = 'BankUser', id_name = 'Id', id_value = bank_user_id)
+        db.delete('BankUser', bank_user_id)
         response.status_code = 204
 
     except sqlite3.IntegrityError:
@@ -261,7 +261,7 @@ def update_account():
     # field provided update database
     db = Database()
     db.connect(BANK_DB)
-    db.update('Account', data, 'Id', account_id)
+    db.update('Account', data, account_id)
 
     # get updated account
     query = 'SELECT * FROM Account WHERE Id = ?;'
@@ -286,7 +286,7 @@ def delete_account():
     # valid request
     db = Database()
     db.connect(BANK_DB)
-    db.delete('Account', 'Id', account_id)
+    db.delete('Account', account_id)
     db.close()
 
     response.status_code = 204
