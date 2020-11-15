@@ -82,8 +82,7 @@ def main():
 
 '''
 
-    bob = db.execQuery('SELECT EXISTS ( SELECT 1 FROM BankUser WHERE Id = ? LIMIT 1);', ('2',)).fetchone()
-    print(bob)
+    #db.delete('Loan', 1)
     db.close()
 
 

@@ -298,7 +298,7 @@ def delete_account():
 def get_deposits():
     response = Response()
 
-    bank_user_id = request.json.get('BankUserId') if request.json else None
+    bank_user_id = request.args.get('BankUserId') if request.args else None
 
     if bank_user_id is None:
         # invalid request
@@ -330,15 +330,16 @@ def get_loans():
     db.connect(BANK_DB)
 
     query = '''
-    SELECT * FROM Loan l
+    SELECT l.Id, l.UserId, l.CreatedAt, l.ModifiedAt, l.Amount
+    FROM Loan l
     LEFT JOIN BankUser b ON l.UserId = b.UserId
     WHERE b.Id = ? AND Amount > 0;
     '''
-    deposits = db.execQuery(query, (bank_user_id,)).fetchall()
+    loans = db.execQuery(query, (bank_user_id,)).fetchall()
 
     response.status_code = 200
     response.data = json.dumps({
-        'deposits':deposits
+        'loans':loans
     })
     return response
 
@@ -472,7 +473,7 @@ def add_deposit():
         return response
     
     body = json.loads(call.content)
-    interest_amount = body.get('amount')
+    interest_amount = round(body.get('amount'), 2)
 
     db = Database()
     db.connect(BANK_DB)
@@ -480,7 +481,7 @@ def add_deposit():
     data = {
         'BankUserId':bank_user_id,
         'CreatedAt':datetime.now().timestamp(),
-        'Amount':round(interest_amount, 2)
+        'Amount':interest_amount
     }
 
     try:
@@ -490,6 +491,27 @@ def add_deposit():
         # get inserted entry
         query = 'SELECT * FROM Deposit WHERE Id = ?;'
         deposit = db.execQuery(query, (cur.lastrowid,)).fetchone()
+
+        # get current account balance
+        query = '''
+        SELECT a.Id, a.Amount 
+        FROM Account a
+        LEFT JOIN BankUser b ON b.Id = a.BankUserId
+        WHERE b.Id = ?;
+        '''
+        row = db.execQuery(query, (bank_user_id,)).fetchone()
+        account_id = row.get('Id')
+        account_balance = row.get('Amount')
+
+        # update account balance
+        account_data = {
+            'ModifiedAt':datetime.now().timestamp(),
+            'Amount':account_balance + interest_amount
+        }
+
+        db.update('Account', account_data, account_id)
+        db.close()
+
 
     except sqlite3.IntegrityError:
         response.status_code = 403
@@ -503,9 +525,177 @@ def add_deposit():
     return response
 
 
+@app.route('/bank/bank_user/loan', methods=['POST'])
+def create_loan():
+    response = Response()
+
+    if request.json is None:
+        return gen_bad_request()
+
+    bank_user_id = request.json.get('BankUserId')
+    loan_amount = request.json.get('LoanAmount')
+
+    print(bank_user_id, flush=True)
+    print(loan_amount, flush=True)
+
+    if bank_user_id is None or loan_amount is None:
+        return gen_bad_request()
+
+    query = '''
+    SELECT a.Amount 
+    FROM Account a
+    LEFT JOIN BankUser b ON b.Id = a.BankUserId
+    WHERE b.Id = ?;
+    '''
+
+    db = Database()
+    db.connect(BANK_DB)
+
+    row = db.execQuery(query, (bank_user_id,)).fetchone()
+
+    if row is None:
+        # BankUser/Account does not exists for the given BankUserId
+        db.close()
+        response.status_code = 403
+        response.data = json.dumps({'message':'No BankUser and/or Account exists for the given Id.'})
+        return response
+        
+    # BankUser/Account exists
+    total_amount = row.get('Amount')
+
+    # make call to loan function
+    request_body = json.dumps({
+        'loan_amount':loan_amount,
+        'total_amount':total_amount
+    })
+
+    print(request_body, flush=True)
+    call = requests.post('http://127.0.0.1:7071/api/Loan_Algorithm', data=request_body)
+
+    if call.status_code != 200:
+        db.close()
+        response.status_code = call.status_code
+        response.data = call.content
+        return response
+    
+    # account has sufficient funds, create loan
+    # first get user id from BankUser
+    query = 'SELECT UserId From BankUser WHERE Id = ?;'
+    user_id = db.execQuery(query, (bank_user_id,)).fetchone().get('UserId')
+
+    print(user_id, flush=True)
+
+    loan = {
+        'UserId':user_id,
+        'CreatedAt':datetime.now().timestamp(),
+        'ModifiedAt':None,
+        'Amount':loan_amount
+    }
+
+    print(loan_amount, flush=True)
+
+    try:
+        # create loan entry
+        cur = db.insert('Loan', loan)
+
+        # get created loan
+        query = 'SELECT * FROM Loan WHERE Id = ?;'
+        loan_entry = db.execQuery(query, (cur.lastrowid,)).fetchone()
+
+        response.status_code = 200
+        response.data = json.dumps({'Loan':loan_entry})
+        return response
+
+    except sqlite3.IntegrityError:
+        response.status_code = 403
+        response.data = json.dumps({'message':'BankUser already has a Loan'})
+        return response
+
+    finally:
+        db.close()
 
 
+@app.route('/bank/bank_user/pay-loan', methods=['POST'])
+def pay_load():
+    response = Response()
 
+    if request.json is None:
+        return gen_bad_request()
+
+    bank_user_id = request.json.get('BankUserId')
+    loan_id = request.json.get('LoanId')
+
+    if bank_user_id is None or loan_id is None:
+        return gen_bad_request()
+
+    # begin a transaction
+    db = Database()
+    db.connect(BANK_DB)
+
+    # read Account balance and loan amount
+    loan_query = '''
+    SELECT l.Amount, l.Id
+    FROM Loan l
+    LEFT JOIN BankUser b ON b.UserId = l.UserId
+    WHERE b.Id = ?;
+    '''
+
+    row = db.execQuery(loan_query, (bank_user_id,)).fetchone()
+
+    if row is None:
+        db.close()
+        response.status_code = 403
+        response.data = json.dumps({'message':'No BankUser/Loan for the given id'})
+        return response
+    
+    loan_id = row.get('Id')
+    loan_amount = row.get('Amount')
+
+    account_query = '''
+    SELECT a.Amount, a.Id
+    FROM Account a
+    LEFT JOIN BankUser b ON b.Id = a.BankUserId
+    WHERE b.Id = ?;
+    '''
+
+    row = db.execQuery(account_query, (bank_user_id,)).fetchone()
+
+    if row is None:
+        db.close()
+        response.status_code = 403
+        response.data = json.dumps({'message':'No BankUser/Account for the given id'})
+        return response
+
+    account_id = row.get('Id')
+    account_amount = row.get('Amount')
+
+    if loan_amount > account_amount:
+        # insufficient funds
+        db.close()
+        response.status_code = 403
+        response.data = json.dumps({'message':'Account has insufficent funds'})
+        return response
+    
+    # account has enough money
+    # update loan
+
+    loan_data = {
+        'Amount':0,
+        'ModifiedAt':datetime.now().timestamp()
+    }
+
+    db.update('Loan', loan_data, loan_id)
+
+    # update account
+    account_data = {
+        'Amount':account_amount - loan_amount,
+        'ModifiedAt':datetime.now().timestamp()
+    }
+
+    db.update('Account', account_data, account_id)
+
+    response.status_code = 200
+    return response
 
 
 
