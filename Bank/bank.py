@@ -347,7 +347,7 @@ def get_loans():
 @app.route('/bank/bank_user/withdraw', methods=['POST'])
 def withdraw_money():
     response = Response()
-
+    print(request.json)
     if request.json is None:
         return gen_bad_request()
 

@@ -290,22 +290,31 @@ def pay_taxes():
     cursor = db.cursor()
     try:
         user = cursor.execute("SELECT Id, Amount FROM SkatUserYear WHERE UserId=?;", (user_id,)).fetchone()
-        is_paid = 0
-        if user[1] > 0:
-            is_paid = 1
-        tax_money = json.loads(requests.post("http://localhost:7071/api/Skat_Tax_Calculator", data=json.dumps({"money":total_amount})).content).get("tax_money")
-        cursor.execute("UPDATE SkatUserYear SET Amount=?, IsPaid=? WHERE UserId=?;", (tax_money, is_paid, user_id))
-        cursor.execute("COMMIT")
-        response.status_code = 200
-        response_body = {"status":"Successfully completed payment resgistration."}
+        if user[1] <= 0:
+            resp = requests.post("http://localhost:7071/api/Skat_Tax_Calculator", json={"money":total_amount})
+            tax_money = json.loads(resp.content).get("tax_money")
+            cursor.execute("UPDATE SkatUserYear SET Amount=?, IsPaid=? WHERE UserId=?;", (tax_money, 1, user_id))
+            cursor.execute("COMMIT")
+
+            # Withdraw money from bank account
+            resp = requests.post("http://127.0.0.1:8080/bank/bank_user/withdraw", json={"UserId":user_id, "Amount":tax_money})
+            if resp.status_code == 200:
+                response.status_code = 200
+                response_body = {"status":"Successfully completed payment resgistration."}
+            else:
+                response.status_code = 500
+                response_body = {"status":"An error occoured during bank account withdrawal"}
+        else:
+            response.status_code = 200
+            response_body = {"status":"User has already paid tax. Payment cancelled."}
+
+
     except TypeError:
         response.status_code = 403
         response_body = {"status": "user_id not found."}
 
     response.data = json.dumps(response_body)
     return response
-
-
 
 
 if __name__ == "__main__":
