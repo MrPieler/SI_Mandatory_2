@@ -294,7 +294,7 @@ def pay_taxes():
         if user[1] > 0:
             is_paid = 1
         tax_money = json.loads(requests.post("http://localhost:7071/api/Skat_Tax_Calculator", data=json.dumps({"money":total_amount})).content).get("tax_money")
-        cursor.execute("UPDATE SkatUserYear SET Amount=?, IsPaid=? WHERE UserId=?;", (tax_money, 1, user_id))
+        cursor.execute("UPDATE SkatUserYear SET Amount=?, IsPaid=? WHERE UserId=?;", (tax_money, is_paid, user_id))
         cursor.execute("COMMIT")
         response.status_code = 200
         response_body = {"status":"Successfully completed payment resgistration."}
