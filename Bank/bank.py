@@ -5,6 +5,7 @@ import sqlite3
 from datetime import datetime
 from database import Database, BANK_DB
 from random import randint
+import requests
 
 # TODO delete on cascade does not work, try to turn on the mode in sqlite3 for every operation
 # TODO can create accounts with a BankUserId that does not exists fix, right now it is already a foreign key constraint??
@@ -436,6 +437,74 @@ def withdraw_money():
     return response
 
 
+@app.route('/bank/bank_user/deposit', methods=['POST'])
+def add_deposit():
+    response = Response()
+
+    if request.json is None or request.args is None:
+        return gen_bad_request()
+
+    bank_user_id = request.args.get('BankUserId')
+    amount = request.json.get('amount')
+
+    if bank_user_id is None or amount is None:
+        return gen_bad_request()
+
+    if type(amount) != int and type(amount) != float:
+        response.status_code = 403
+        response.data = json.dumps({
+            'message':'amount must be a positive number'
+        })
+        return response
+
+    if amount <= 0:
+        response.status_code = 403
+        response.data = json.dumps({
+            'message':'amount must be a positive number'
+        })
+        return response
+
+    call = requests.post('http://127.0.0.1:7071/api/Interest_Rate', data=json.dumps({'amount':amount}))
+
+    if call.status_code != 200:
+        response.status_code = call.status_code
+        response.data = call.content
+        return response
+    
+    body = json.loads(call.content)
+    interest_amount = body.get('amount')
+
+    db = Database()
+    db.connect(BANK_DB)
+
+    data = {
+        'BankUserId':bank_user_id,
+        'CreatedAt':datetime.now().timestamp(),
+        'Amount':round(interest_amount, 2)
+    }
+
+    try:
+        # insert deposit entry
+        cur = db.insert('Deposit',data)
+
+        # get inserted entry
+        query = 'SELECT * FROM Deposit WHERE Id = ?;'
+        deposit = db.execQuery(query, (cur.lastrowid,)).fetchone()
+
+    except sqlite3.IntegrityError:
+        response.status_code = 403
+        response.data = json.dumps({'message':'No BankUser exists with the given Id.'})
+        return response
+    finally:
+        db.close()
+
+    response.status_code = 200
+    response.data = json.dumps({'Deposit':deposit})
+    return response
+
+
+
+
 
 
 
@@ -457,4 +526,4 @@ def generate_account_number():
 
 if __name__ == "__main__":
     # begin server
-    app.run(port = 8080)
+    app.run(port = 8080, threaded=True)
