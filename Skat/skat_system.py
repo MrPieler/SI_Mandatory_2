@@ -11,7 +11,7 @@ db_path = f"{pathlib.Path(__file__).parent.absolute()}/skat_db.sqlite3"
 db = "skat_db.sqlite3"
 
 # CRUD FOR SkatUser
-@app.route("/user", methods=["POST"])
+@app.route("/skat/user", methods=["POST"])
 def create_user():
     db = sqlite3.connect(db_path)
     response = Response()
@@ -42,7 +42,7 @@ def create_user():
     response.data = json.dumps(response_body)
     return response
 
-@app.route("/user", methods=["GET"])
+@app.route("/skat/user", methods=["GET"])
 def read_user():
     db = sqlite3.connect(db_path)
     response = Response()
@@ -70,7 +70,7 @@ def read_user():
     response.data = json.dumps(response_body)
     return response
 
-@app.route("/user", methods=["PATCH"])
+@app.route("/skat/user", methods=["PATCH"])
 def update_user():
     db = sqlite3.connect(db_path)
     response = Response()
@@ -106,7 +106,7 @@ def update_user():
     response.data = json.dumps(response_body)
     return response
 
-@app.route("/user", methods=["DELETE"])
+@app.route("/skat/user", methods=["DELETE"])
 def delete_user():
     db = sqlite3.connect(db_path)
     response = Response()
@@ -136,7 +136,7 @@ def delete_user():
     return response
 
 # CRUD FOR SkatYear
-@app.route("/year", methods=["POST"])
+@app.route("/skat/year", methods=["POST"])
 def create_year():
     db = sqlite3.connect(db_path)
     response = Response()
@@ -183,7 +183,7 @@ def create_year():
     response.data = json.dumps(response_body)
     return response
 
-@app.route("/year", methods=["GET"])
+@app.route("/skat/year", methods=["GET"])
 def read_year():
     db = sqlite3.connect(db_path)
     response = Response()
@@ -219,7 +219,7 @@ def read_year():
     return response
 
 
-@app.route("/year", methods=["PATCH"])
+@app.route("/skat/year", methods=["PATCH"])
 def update_year():
     db = sqlite3.connect(db_path)
     response = Response()
@@ -250,7 +250,7 @@ def update_year():
     response.data = json.dumps(response_body)
     return response
 
-@app.route("/year", methods=["DELETE"])
+@app.route("/skat/year", methods=["DELETE"])
 def delete_year():
     db = sqlite3.connect(db_path)
     response = Response()
@@ -279,7 +279,7 @@ def delete_year():
     response.data = json.dumps(response_body)
     return response
 
-@app.route("/pay-taxes", methods=["POST"])
+@app.route("/skat/pay-taxes", methods=["POST"])
 def pay_taxes():
     db = sqlite3.connect(db_path)
     response = Response()
@@ -297,7 +297,7 @@ def pay_taxes():
             cursor.execute("COMMIT")
 
             # Withdraw money from bank account
-            resp = requests.post("http://127.0.0.1:8080/bank/bank_user/withdraw", json={"UserId":user_id, "Amount":tax_money})
+            resp = requests.post("http://127.0.0.1:8090/bank/bank_user/withdraw", json={"UserId":user_id, "Amount":tax_money})
             if resp.status_code == 200:
                 response.status_code = 200
                 response_body = {"status":"Successfully completed payment resgistration."}
@@ -319,5 +319,5 @@ def pay_taxes():
 
 if __name__ == "__main__":
     # begin server
-    app.run(host="localhost", port = 8081, threaded=True)
+    app.run(host="localhost", port = 8092, threaded=True)
     

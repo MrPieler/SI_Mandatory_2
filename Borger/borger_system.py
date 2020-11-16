@@ -9,7 +9,7 @@ app.config["DEBUG"] = True
 db_path = f"{pathlib.Path(__file__).parent.absolute()}/borger_db.sqlite3"
 
 # CRUD FOR Borger
-@app.route("/borger", methods=["POST"])
+@app.route("/borger_service/borger", methods=["POST"])
 def create_borger():
     db = sqlite3.connect(db_path)
     response = Response()
@@ -40,11 +40,11 @@ def create_borger():
     response.data = json.dumps(response_body)
     return response
 
-@app.route("/borger", methods=["GET"])
+@app.route("/borger_service/borger", methods=["GET"])
 def read_borger():
     db = sqlite3.connect(db_path)
     response = Response()
-
+    
     user_id = request.args.get("user_id")
     if user_id:
         try:
@@ -66,7 +66,7 @@ def read_borger():
     response.data = json.dumps(response_body)
     return response
 
-@app.route("/borger", methods=["PATCH"])
+@app.route("/borger_service/borger", methods=["PATCH"])
 def update_borger():
     db = sqlite3.connect(db_path)
     response = Response()
@@ -102,7 +102,7 @@ def update_borger():
     response.data = json.dumps(response_body)
     return response
 
-@app.route("/borger", methods=["DELETE"])
+@app.route("/borger_service/borger", methods=["DELETE"])
 def delete_borger():
     db = sqlite3.connect(db_path)
     response = Response()
@@ -132,7 +132,7 @@ def delete_borger():
     return response
 
 # CRUD FOR Address
-@app.route("/address", methods=["POST"])
+@app.route("/borger_service/address", methods=["POST"])
 def create_address():
     db = sqlite3.connect(db_path)
     response = Response()
@@ -168,7 +168,7 @@ def create_address():
     response.data = json.dumps(response_body)
     return response
 
-@app.route("/address", methods=["GET"])
+@app.route("/borger_service/address", methods=["GET"])
 def read_address():
     db = sqlite3.connect(db_path)
     response = Response()
@@ -200,7 +200,7 @@ def read_address():
     return response
 
 
-@app.route("/address", methods=["PATCH"])
+@app.route("/borger_service/address", methods=["PATCH"])
 def update_address():
     db = sqlite3.connect(db_path)
     response = Response()
@@ -230,7 +230,7 @@ def update_address():
     response.data = json.dumps(response_body)
     return response
 
-@app.route("/address", methods=["DELETE"])
+@app.route("/borger_service/address", methods=["DELETE"])
 def delete_address():
     db = sqlite3.connect(db_path)
     response = Response()
@@ -261,5 +261,5 @@ def delete_address():
 
 if __name__ == "__main__":
     # begin server
-    app.run(port = 8080)
+    app.run(port = 8091)
     

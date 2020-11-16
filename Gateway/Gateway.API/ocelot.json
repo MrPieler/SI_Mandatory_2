@@ -1,23 +1,43 @@
 {
-  "ReRoutes": [
+  "Routes": [
     {
-      "DownstreamPathTemplate": "/api/v1/todo/",
+      "DownstreamPathTemplate": "/bank/{everything}",
       "DownstreamScheme": "http",
-      "UpstreamPathTemplate": "/api/v1/todo/",
-      "UpstreamHttpMethod": [ "Get", "Post" ],
+      "UpstreamPathTemplate": "/api/bank/{everything}",
+      "UpstreamHttpMethod": [ "Get", "Post", "Patch", "Delete" ],
       "DownstreamHostAndPorts": [
         {
-          "Host": "lxtodo.azurewebsites.net",
-          "Port": 80
+          "Host": "localhost",
+          "Port": 8090
         }
-    
-      ],
-      "DownstreamHeaderTransform": {
-        "Location": "{DownstreamBaseUrl}, {BaseUrl}"
-      }
+      ]
+    },
+    {
+      "DownstreamPathTemplate": "/borger_service/{everything}",
+      "DownstreamScheme": "http",
+      "UpstreamPathTemplate": "/api/borger_service/{everything}",
+      "UpstreamHttpMethod": [ "Get", "Post", "Patch", "Delete" ],
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": 8091
+        }
+      ]
+    },
+    {
+      "DownstreamPathTemplate": "/skat/{everything}",
+      "DownstreamScheme": "http",
+      "UpstreamPathTemplate": "/api/skat/{everything}",
+      "UpstreamHttpMethod": [ "Get", "Post", "Patch", "Delete" ],
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": 8092
+        }
+      ]
     }
   ],
   "GlobalConfiguration": {
-    "BaseUrl": "http://anotherapp.azurewebsites.net"
+    "BaseUrl": "http://localhost:8001"
   }
 }
