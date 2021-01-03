@@ -1,0 +1,7 @@
+-Open sqlite3 Databases for apps
+1) open the command palette with command ctr+p
+2) type: >SqLite: Open Database and select db sql file
+3) do this for the three databases:
+	bank_db.sql
+	borger_db.sql
+	skat_db.sql

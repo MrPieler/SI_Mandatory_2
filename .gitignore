@@ -756,7 +756,7 @@ dist
 
 # End of https://www.toptal.com/developers/gitignore/api/csharp,node,java,python,jupyternotebooks,angular,django,dart
 
-.vscode/
+
 .venv/
 
 

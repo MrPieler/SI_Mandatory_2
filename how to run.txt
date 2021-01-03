@@ -1,0 +1,21 @@
+-Run bank app
+1) navigate to: <project-location>\SI_mandatory_2\SI_Mandatory_2\Bank
+2) run app with command: python .\bank.py
+
+-Run borger app
+1) navigate to: <project-location>\SI_mandatory_2\SI_Mandatory_2\Borger
+2) run app:  python .\borger_system.py
+
+-Run skat app
+1) navigate to: <project-location>\SI_mandatory_2\SI_Mandatory_2\Skat>
+2) run app: python .\skat_system.py
+
+-Run azure functions
+1) navigate to <project-location>\SI_mandatory_2\SI_Mandatory_2\Functions
+2) if first time run "func init"
+3) run functions with command: "func start"
+
+
+-Run gateway
+1) navigate to PS <project-location>\SI_mandatory_2\SI_Mandatory_2\Gateway\Gateway.API
+2) run gateway with command: "dotnet run .\Startup.cs"

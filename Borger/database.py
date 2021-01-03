@@ -31,14 +31,17 @@ class Database():
         counter = 0
         max = len(data)
         update_fields = ''
+        placeholderValues = []
         for k, v in data.items():
             counter += 1
+            placeholderValues.append(v)
             if counter == max:
-                update_fields += f'{k} = {v}'
+                update_fields += f'{k} = ?'
             else:
-                update_fields += f'{k} = {v},'
+                update_fields += f'{k} = ?,'
         sql = f'UPDATE {tableName} SET {update_fields} WHERE {id_name} = {id_value};'
-        cur = self.execQuery(sql)
+        print(sql)
+        cur = self.execQuery(sql, placeholderValues)
         self.conn.commit()
         return cur
 

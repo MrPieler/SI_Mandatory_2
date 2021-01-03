@@ -1,8 +1,10 @@
 import pathlib
+from sqlite3.dbapi2 import IntegrityError
 from flask import request, Response, Flask
 import json
 import sqlite3
-from datetime import datetime
+from datetime import date, datetime
+from database import Database
 
 app = Flask(__name__)
 app.config["DEBUG"] = True
@@ -11,22 +13,32 @@ db_path = f"{pathlib.Path(__file__).parent.absolute()}/borger_db.sqlite3"
 # CRUD FOR Borger
 @app.route("/borger_service/borger", methods=["POST"])
 def create_borger():
-    db = sqlite3.connect(db_path)
     response = Response()
+    response.headers['Content-Type'] = 'application/json'
 
     user_id = request.json.get("user_id")
-    if user_id:
-        cursor = db.cursor()
-        try:
-            cursor.execute("INSERT INTO BorgerUser (UserId, CreatedAt) VALUES(?, ?);", (user_id, datetime.now()))
-            cursor.execute("COMMIT")
 
-            
+    if user_id:
+        try:
+            db = Database()
+            db.connect(db_path)
+
+            data = {
+                "UserId": user_id,
+                "CreatedAt": datetime.now()
+            }
+
+            cur = db.insert("BorgerUser", data)
+
+            # get inserted borger
+            query = '''
+            SELECT * FROM BorgerUser Where Id = ?;
+            '''
+            borger = db.execQuery(query, (cur.lastrowid, )).fetchone()
 
             response.status_code = 201
-            response_body = {
-                "status": "Creation successful"
-            }
+            response_body = borger
+
         except sqlite3.IntegrityError:
             response.status_code = 403
             response_body = {
@@ -47,20 +59,23 @@ def create_borger():
 def read_borger():
     db = sqlite3.connect(db_path)
     response = Response()
+    response.headers['Content-Type'] = 'application/json'
+
     
-    user_id = request.args.get("user_id")
+    user_id = request.args.get("id")
+
     if user_id:
         try:
             cursor = db.cursor()
-            rows = cursor.execute("SELECT * FROM BorgerUser WHERE UserId=?;", (user_id,))
-            response.status_code = 201
+            rows = cursor.execute("SELECT * FROM BorgerUser WHERE Id=?;", (user_id,))
+            response.status_code = 200
             user = rows.fetchone()
             response_body = {"BorgerUser":{"Id":user[0], "user_id":user[1], "CreatedAt":user[2]}}
         except TypeError:
-            response.status_code = 403
+            response.status_code = 400
             response_body = {"Status":f"user_id '{user_id}' not found."}
     else:
-        response.status_code = 401
+        response.status_code = 400
         response_body = {
             "status": "Missing parameters.",
             "message": "To get a user you must specify a 'user_id'"
@@ -73,34 +88,48 @@ def read_borger():
 def update_borger():
     db = sqlite3.connect(db_path)
     response = Response()
+    response.headers['Content-Type'] = 'application/json'
+
+    if request.args is None or request.json is None:
+        return gen_bad_request()
 
     identifier = request.args.get("id")
-    user_id = request.args.get("user_id")
-    if identifier and user_id:
-        cursor = db.cursor()
-        try:
-            cursor.execute("UPDATE BorgerUser SET UserId=? WHERE Id=?;", (user_id, identifier))
-            cursor.execute("COMMIT")
-            if cursor.execute("SELECT * FROM BorgerUser WHERE Id=?", (identifier,)).fetchone():
-                response.status_code = 200
-                response_body = {"status": "User successfully updated."}
-            else:
-                response.status_code = 404
-                response_body = {
-                    "status": "Resource not found",
-                    "message": f"No user with id '{identifier}' was found"}
-        except sqlite3.IntegrityError:
-            response.status_code = 403
-            response_body = {
-                "status": "Database integrity error.",
-                "message": "user_id already exists."
-            }
-    else:
-        response.status_code = 401
-        response_body = {
-            "status": "Missing parameters.",
-            "message": "To update a user you must specify an 'id' and the new user_id you wish to change to"
+    user_id = request.json.get("user_id")
+
+    if identifier is None or user_id is None:
+        return gen_bad_request("id and/or user_id is missing and are required")
+
+    db = Database()
+    db.connect(db_path)
+
+    try:
+        data = {
+            "UserId": user_id
         }
+
+        db.update("BorgerUser", data, identifier)
+
+        # get updated borger user
+        query = 'SELECT * FROM BorgerUser WHERE Id = ?'
+        borger_user = db.execQuery(query, (identifier,)).fetchone()
+
+        if borger_user:
+            response.status_code = 200
+            response_body = borger_user
+        else:
+            response.status_code = 404
+            response_body = {
+                "status": "Resource not found",
+                "message": f"No user with id '{identifier}' was found"}
+
+    except sqlite3.IntegrityError:
+        response.status_code = 403
+        response_body = {
+            "status": "Database integrity error.",
+            "message": "user_id already exists or foreign key constraint fails"
+        }
+    finally:
+        db.close()
 
     response.data = json.dumps(response_body)
     return response
@@ -109,23 +138,25 @@ def update_borger():
 def delete_borger():
     db = sqlite3.connect(db_path)
     response = Response()
+    response.headers['Content-Type'] = 'application/json'
 
-    user_id = request.args.get("user_id")
-    if user_id:
+    id = request.args.get("id")
+
+    if id:
         cursor = db.cursor()
-        if cursor.execute("SELECT * FROM BorgerUser WHERE UserId=?", (user_id,)).fetchone():
+        if cursor.execute("SELECT * FROM BorgerUser WHERE Id=?", (id,)).fetchone():
             cursor.execute("PRAGMA foreign_keys = ON;")
-            cursor.execute("DELETE FROM BorgerUser WHERE UserId=?;", (user_id,))
+            cursor.execute("DELETE FROM BorgerUser WHERE Id=?;", (id,))
             cursor.execute("COMMIT")
             response.status_code = 200
-            response_body = {"status": f"User '{user_id}' successfully deleted"}
+            response_body = {"status": f"User '{id}' successfully deleted"}
         else:
             response.status_code = 404
             response_body = {
                 "status": "Resource not found",
-                "message": f"No user with user_id '{user_id}' was found"}
+                "message": f"No user with user_id '{id}' was found"}
     else:
-        response.status_code = 401
+        response.status_code = 400
         response_body = {
             "status": "Missing parameters.",
             "message": "To delete a user you must specify a 'user_id'"
@@ -139,34 +170,60 @@ def delete_borger():
 def create_address():
     db = sqlite3.connect(db_path)
     response = Response()
+    response.headers['Content-Type'] = 'application/json'
 
-    user_id = request.args.get("user_id")
-    street = request.args.get("street")
-    if user_id and street:
-        cursor = db.cursor()
-        try:
-            cursor.execute("PRAGMA foreign_keys = ON;")
+    # validate reqeust
+    if request.json is None:
+        return gen_bad_request()
+
+    borger_user_id = request.json.get("borger_user_id")
+    street = request.json.get("street")
+
+    if borger_user_id is None or street is None:
+        return gen_bad_request()
+
+    db = Database()
+    db.connect(db_path)
+
+    try:
+        # get borger user
+        borger_user = db.execQuery("SELECT * FROM BorgerUser WHERE Id = ?;", (borger_user_id,)).fetchone()
+
+        if borger_user:
             # Change current active address for user
-            cursor.execute("UPDATE Address SET IsValid = 0 WHERE BorgerUserId=?", (user_id,))
+            db.execQuery("UPDATE Address SET IsValid = 0 WHERE BorgerUserId=?", (borger_user_id,))
+            
             # Insert new address
-            cursor.execute("INSERT INTO Address (BorgerUserId, Street, CreatedAt, IsValid) VALUES(?,?,?,?);", (user_id, street, datetime.now(), 1))
-            cursor.execute("COMMIT")
+            data = {
+                "BorgerUserId": borger_user_id,
+                "Street": street,
+                "CreatedAt": datetime.now(),
+                "IsValid": 1 
+            }
+            
+            cur = db.insert("Address", data)
+            
+            # get inserted address
+            address = db.execQuery('SELECT * FROM Address WHERE Id = ?', (cur.lastrowid,)).fetchone()
+
             response.status_code = 201
+            response_body = address
+        
+        else:
+            response.status_code = 404
             response_body = {
-                "status": "Address creation successful"
-            }
-        except sqlite3.IntegrityError:
-            response.status_code = 403
-            response_body = {
-                "status": "Database integrity error.",
-                "message": "user_id not found."
-            }
-    else:
-        response.status_code = 401
-        response_body = {
-            "status": "Missing parameters.",
-            "message": "To create an address you must specify a 'user_id' and 'street' to create an address"
+            "status": "Not Found.",
+            "message": "Borger User does not exists."
         }
+        
+    except sqlite3.IntegrityError:
+        response.status_code = 403
+        response_body = {
+            "status": "Database integrity error.",
+            "message": "borger_user_id not found."
+        }
+    finally:
+        db.close()
 
     response.data = json.dumps(response_body)
     return response
@@ -175,28 +232,23 @@ def create_address():
 def read_address():
     db = sqlite3.connect(db_path)
     response = Response()
+    response.headers['Content-Type'] = 'application/json'
 
-    user_id = request.args.get("user_id")
-    if user_id:
-        cursor = db.cursor()
-        rows = cursor.execute("SELECT * FROM Address WHERE BorgerUserId=?;", (user_id,))
-        response.status_code = 201
-        addresses = {}
-        i = 1
-        for address in rows.fetchall():
-            addresses[f"Address {i}"] = {
-                "id":address[0],
-                "user_id":address[1],
-                "street":address[2],
-                "created_at":address[3],
-                "active":bool(address[4])}
-            i += 1
+
+    borger_user_id = request.args.get("borger_user_id")
+
+    if borger_user_id:
+        
+        db = Database()
+        db.connect(db_path)
+
+        addresses = db.execQuery("SELECT * FROM Address WHERE BorgerUserId = ?;", (borger_user_id,)).fetchall()
         response_body = {"Addresses":addresses}
     else:
-        response.status_code = 401
+        response.status_code = 400
         response_body = {
             "status": "Missing parameters.",
-            "message": "To get an address you must specify a 'user_id'"
+            "message": "To get an address you must specify a 'borger_user_id'"
         }
 
     response.data = json.dumps(response_body)
@@ -207,28 +259,65 @@ def read_address():
 def update_address():
     db = sqlite3.connect(db_path)
     response = Response()
+    response.headers['Content-Type'] = 'application/json'
 
-    identifier = request.args.get("id")
-    street = request.args.get("street")
-    if identifier and street:
-        cursor = db.cursor()
-        cursor.execute("PRAGMA foreign_keys = ON;")
-        cursor.execute("UPDATE BorgerUser SET Street=? WHERE Id=?;", (street, identifier))
-        cursor.execute("COMMIT")
-        if cursor.execute("SELECT * FROM Address WHERE Id=?", (identifier,)).fetchone():
-            response.status_code = 200
-            response_body = {"status": "Address successfully updated."}
-        else:
-            response.status_code = 404
-            response_body = {
-                "status": "Resource not found",
-                "message": f"No address with id '{identifier}' was found"}
+    # validate request
+    if request.args is None or request.json is None:
+        return gen_bad_request()
+
+    id = request.args.get("id")
+    street = request.json.get("street")
+    isValid = request.json.get("is_valid")
+
+    if id is None:
+        return gen_bad_request()
+
+    data = {}
+
+    if street != None:
+        data['Street'] = street
+    
+    if isValid != None:
+        data['IsValid'] = 1 if isValid == True else 0
+
+    if data:
+        db = Database()
+        db.connect(db_path)
+
+        try:
+            # get existing address
+            address = db.execQuery("SELECT * FROM Address WHERE Id = ?;", (id,)).fetchone()
+
+            if address:
+                # check if isValid should be updated
+                if data['IsValid']:
+                    # check if isValid is different than existing
+                    if data['IsValid'] != address['IsValid']:
+                        # update isValid
+                        if data['IsValid'] == 1:
+                            # reset other addresses
+                            db.execQuery("UPDATE Address SET IsValid = 0 WHERE Id != ? AND BorgerUserId=?", (id, address['BorgerUserId'],))
+
+                # update address
+                db.update("Address", data, id)
+
+                # get updated address
+                address = db.execQuery("SELECT * FROM Address WHERE Id = ?;", (id,)).fetchone()
+                response.status_code = 200
+                response_body = address
+
+            else:
+                response.status_code = 404
+                response_body = {
+                    "status": "Resource not found",
+                    "message": f"No address with id '{identifier}' was found"}
+
+        except sqlite3.IntegrityError:
+            pass
+        finally:
+            db.close()
     else:
-        response.status_code = 401
-        response_body = {
-            "status": "Missing parameters.",
-            "message": "To update an address you must specify an 'id' and the new street you wish to change to"
-        }
+        return gen_bad_request()
 
     response.data = json.dumps(response_body)
     return response
@@ -237,30 +326,63 @@ def update_address():
 def delete_address():
     db = sqlite3.connect(db_path)
     response = Response()
+    response.headers['Content-Type'] = 'application/json'
 
-    identifier = request.args.get("id")
-    if identifier:
-        cursor = db.cursor()
-        if cursor.execute("SELECT * FROM Address WHERE Id=?", (identifier,)).fetchone():
-            cursor.execute("PRAGMA foreign_keys = ON;")
-            cursor.execute("DELETE FROM Address WHERE Id=?;", (identifier,))
-            cursor.execute("COMMIT")
-            response.status_code = 200
-            response_body = {"status": f"Address '{identifier}' successfully deleted"}
-        else:
-            response.status_code = 404
+    if request.args is None:
+        return gen_bad_request()
+
+    id = request.args.get("id")
+
+    if id is None:
+        return gen_bad_request()
+
+    db = Database()
+    db.connect(db_path)
+
+    address = db.execQuery("SELECT * FROM Address WHERE Id = ?;", (id,)).fetchone()
+
+    if address:
+        # check if this address has isValid, if then cancel delete
+        if address['IsValid'] == 1:
+            response.status_code = 403
             response_body = {
-                "status": "Resource not found",
-                "message": f"No address with id '{identifier}' was found"}
+                "message": "Cannot delete an address that is the valid one."
+            }
+        
+        else:
+            # delete address
+            db.delete("Address", id)
+            response.status_code = 200
+            response_body = {
+                "status": "Resource deleted",
+            }
+
+        db.close()
+
     else:
-        response.status_code = 401
+        # address not found
+        response.status_code = 404
         response_body = {
-            "status": "Missing parameters.",
-            "message": "To delete an address you must specify an 'id'"
-        }
+            "status": "Resource not found",
+            "message": f"No address with id '{id}' was found"}
 
     response.data = json.dumps(response_body)
     return response
+
+
+def gen_bad_request(message = None):
+    
+    if message is None:
+        message = 'Invalid Request'
+
+    response = Response()
+    response.headers['Content-Type'] = 'application/json'
+    response.status_code = 400
+    response.data = json.dumps({
+        'message':message
+    })
+    return response
+
 
 if __name__ == "__main__":
     # begin server
