@@ -13,12 +13,12 @@ CREATE TABLE BankUser (
 
 CREATE TABLE Loan (
     Id INTEGER PRIMARY KEY AUTOINCREMENT,
-    UserId VARCHAR NOT NULL,
+    BankUserId INTEGER NOT NULL,
     CreatedAt TIMESTAMP NOT NULL,
     ModifiedAt TIMESTAMP,
     Amount DECIMAL NOT NULL,
-    FOREIGN KEY (UserId)
-      REFERENCES BankUser (UserId)
+    FOREIGN KEY (BankUserId)
+      REFERENCES BankUser (Id)
       ON DELETE CASCADE
 );
 

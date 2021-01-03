@@ -14,12 +14,15 @@ def create_borger():
     db = sqlite3.connect(db_path)
     response = Response()
 
-    user_id = request.args.get("user_id")
+    user_id = request.json.get("user_id")
     if user_id:
         cursor = db.cursor()
         try:
             cursor.execute("INSERT INTO BorgerUser (UserId, CreatedAt) VALUES(?, ?);", (user_id, datetime.now()))
             cursor.execute("COMMIT")
+
+            
+
             response.status_code = 201
             response_body = {
                 "status": "Creation successful"

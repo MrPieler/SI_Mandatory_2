@@ -6,7 +6,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     try:
         req_body = req.get_json()
     except ValueError:
-        return func.HttpResponse(status_code=404)
+        return func.HttpResponse(status_code=400, body=json.dumps({
+                        "message": 'body required with loan_amount and total_amount'
+                        }), headers=get_header())
     else:
 
         loan_amount = req_body.get('loan_amount')
@@ -40,14 +42,17 @@ def is_number(amount):
 def send_insufficent_funds_response():
     return func.HttpResponse(status_code=403, body=json.dumps({
                         "message": 'insufficient funds'
-                        }))
+                        }), headers=get_header())
 
 def send_bad_request():
-    return func.HttpResponse(status_code=403, body=json.dumps({
+    return func.HttpResponse(status_code=400, body=json.dumps({
                         "message": 'invalid requst'
-                        }))
+                        }), headers=get_header())
 
 def send_bad_request_numbers():
-    return func.HttpResponse(status_code=403, body=json.dumps({
+    return func.HttpResponse(status_code=400, body=json.dumps({
                         "message": 'loan_amount/total_amount must be positive numbers'
-                        }))
+                        }), headers=get_header())
+
+def get_header():
+    return {'Content-Type': 'application/json'}
