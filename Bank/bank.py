@@ -17,17 +17,19 @@ app.config['DEBUG'] = True
 @app.route('/bank/bank_user', methods=['GET'])
 def get_bank_user():
 
+    if not request.args:
+        return gen_bad_request()
+
     # get url params
-    bank_user_id = request.args.get('Id') if request.args else None
+    bank_user_id = request.args.get('Id')
+    user_id = request.args.get('UserId')
+
+    if not bank_user_id and not user_id:
+        return gen_bad_request()
 
     # create response
     response = Response()
     response.headers['Content-Type'] = 'application/json'
-
-    # check for valid request
-    if bank_user_id is None:
-        # invalid request
-        return gen_bad_request()
 
     # valid request
     # connect to db
@@ -35,9 +37,17 @@ def get_bank_user():
     db = Database()
     db.connect(BANK_DB)
 
-    query = 'SELECT * FROM BankUser WHERE Id = ?;'
-    bank_user = db.execQuery(query, (bank_user_id, )).fetchone()
-    db.close()
+    if bank_user_id:
+        # get user based on id
+        query = 'SELECT * FROM BankUser WHERE Id = ?;'
+        bank_user = db.execQuery(query, (bank_user_id, )).fetchone()
+        db.close()
+
+    else:
+        # get user based on userid
+        query = 'SELECT * FROM BankUser WHERE UserId = ?;'
+        bank_user = db.execQuery(query, (user_id,)).fetchone()
+        db.close()
 
     # check if user exists
     if bank_user:
@@ -50,7 +60,7 @@ def get_bank_user():
         # user does not exists
         response.status_code = 404
         response.data = json.dumps({
-            "message":"No user found with id: " + bank_user_id 
+            "message":"No user found with given id"
         })
 
     return response
@@ -211,17 +221,34 @@ def get_account():
     response = Response()
     response.headers['Content-Type'] = 'application/json'
 
-    account_id = request.args.get('Id') if request.args else None
+    if not request.args:
+        return gen_bad_request()
 
-    if account_id is None:
+    account_id = request.args.get('Id')
+    user_id = request.args.get('UserId')
+
+    if not account_id and not user_id:
         return gen_bad_request()
 
     db = Database()
     db.connect(BANK_DB)
 
-    query = 'SELECT * FROM Account WHERE Id = ?;'
-    data = db.execQuery(query, (account_id,)).fetchone()
-    db.close()
+    if account_id:
+        # get account based on account id
+        query = 'SELECT * FROM Account WHERE Id = ?;'
+        data = db.execQuery(query, (account_id,)).fetchone()
+        db.close()
+    
+    else:
+        # get account based on bank user user id
+        query = '''
+        SELECT a.Id, a.BankUserId, a.AccountNo, a.IsStudent, a.CreatedAt, a.ModifiedAt, a.InterestRate
+        FROM Account a 
+        INNER JOIN BankUser b ON b.Id = a.BankUserId
+        WHERE b.UserId = ?;
+        '''
+        data = db.execQuery(query, (user_id,)).fetchone()
+        db.close()
 
     if data:
         response.status_code = 200

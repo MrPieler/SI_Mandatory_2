@@ -86,7 +86,6 @@ def read_borger():
 
 @app.route("/borger_service/borger", methods=["PATCH"])
 def update_borger():
-    db = sqlite3.connect(db_path)
     response = Response()
     response.headers['Content-Type'] = 'application/json'
 
